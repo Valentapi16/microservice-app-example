@@ -62,3 +62,31 @@ routes(app, {tracer, redisClient, logChannel})
 app.listen(port, function () {
   console.log('todo list RESTful API server started on: ' + port)
 })
+
+
+const axios = require("axios");
+const CircuitBreaker = require("opossum");
+
+// Función que hace la llamada al Users API
+async function getUsers() {
+  return axios.get("http://users-api:8080/users");
+}
+
+// Configuración del circuit breaker
+const options = {
+  timeout: 3000, // tiempo máximo por request
+  errorThresholdPercentage: 50, // si 50% de requests fallan, se abre el breaker
+  resetTimeout: 5000 // tiempo para intentar de nuevo
+};
+
+const breaker = new CircuitBreaker(getUsers, options);
+
+// Endpoint que usa el breaker
+app.get("/users", async (req, res) => {
+  try {
+    const response = await breaker.fire();
+    res.json(response.data);
+  } catch (err) {
+    res.status(503).json({ message: "Users API unavailable. Try later." });
+  }
+});
