@@ -1,0 +1,36 @@
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Add VM to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest code on remote server
+        run: |
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
+            cd /opt/microservice-app-example && \
+            sudo git pull --no-rebase origin master \
+          "
+
+      - name: Rebuild and restart Frontend container
+        run: |
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
+            cd /opt/microservice-app-example && \
+            sudo docker-compose build --no-cache frontend  && \
+            sudo docker-compose up -d --build --force-recreate frontend \
+          "
