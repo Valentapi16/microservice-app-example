@@ -1,39 +1,57 @@
 name: Users API CI
-
 on:
   push:
     branches:
       - master
     paths:
       - 'users-api/**'
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('users-api/pom.xml') }}
+      
+      - name: Test Users API locally
+        run: |
+          cd users-api
+          mvn clean compile test
+      
       - name: Build Docker image for Users API
         run: |
-          docker build -t users-api ./users-api
-
+          docker build -t users-api:latest ./users-api
+      
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+      
       - name: Add VM to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-
+      
       - name: Pull latest code on remote server
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo git pull --no-rebase origin master \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo git pull origin master
           "
-
+      
       - name: Rebuild and restart Users API container
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo docker-compose up -d --build --force-recreate users-api \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo docker-compose build users-api && 
+            sudo docker-compose up -d users-api
           "
