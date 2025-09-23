@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - dev
     paths:
       - 'log-message-processor/**'
 jobs:
