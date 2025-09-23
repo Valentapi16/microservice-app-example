@@ -1,40 +1,52 @@
 name: Deploy Auth API
-
 on:
   push:
     branches:
       - master
     paths:
       - 'auth-api/**'
-
 jobs:
   deploy:
     name: Build & Deploy Auth API
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      
+      - name: Test Auth API locally
+        run: |
+          cd auth-api
+          go mod tidy
+          go build -o auth-api .
+      
       - name: Build Docker image for Auth API
         run: |
           docker build -t auth-api:latest ./auth-api
-
+      
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+      
       - name: Add VM to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-
+      
       - name: Pull latest code on remote server
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo git pull --no-rebase origin master \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo git pull origin master
           "
-
+      
       - name: Rebuild and restart Auth API container
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo docker-compose up -d --build --force-recreate auth-api \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo docker-compose build auth-api && 
+            sudo docker-compose up -d auth-api
           "
