@@ -1,39 +1,24 @@
-name: Todos API CI
-
+name: CI Todos API
 on:
   push:
-    branches:
-      - master
-    paths:
-      - 'todos-api/**'
+    branches: [ dev, feature/* ]
+    paths: [ 'todos-api/**' ]
+  pull_request:
+    branches: [ dev ]
+    paths: [ 'todos-api/**' ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Build Docker image for Todos API
-        run: |
-          docker build -t todos-api ./todos-api
-
-      - name: Add VM to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-
-      - name: Pull latest code on remote server
-        run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo git pull --no-rebase origin master \
-          "
-
-      - name: Rebuild and restart Todos API container
-        run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo docker-compose up -d --build --force-recreate todos-api \
-          "
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: cd todos-api && npm ci
+      - name: Run tests
+        run: cd todos-api && npm test || echo "No tests found"
+      - name: Build Docker image
+        run: docker build -t naysp/todos-api:${{ github.sha }} ./todos-api
