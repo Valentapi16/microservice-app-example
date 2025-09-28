@@ -30,4 +30,4 @@ where `$token` is the response you get from [Auth API](/auth-api).
 Here you can find the software required to run this microservice, as well as the version we have tested. 
 |  Dependency | Version  |
 |-------------|----------|
-| Java        | openJDK8 |
+| Java        | openJDK8 |# Test pipeline - Sun Sep 28 18:51:53 HPS 2025
