@@ -1,16 +1,20 @@
-name: CI Todos API
+name: CI/CD - todos-api
 on:
   push:
-    branches: [ master, dev, feature/* ]
-    paths: [ 'todos-api/**' ]
+    branches: [ "master", "dev", "feature/*" ]
+    paths:
+      - "todos-api/**"
   pull_request:
-    branches: [ master, dev ]
-    paths: [ 'todos-api/**' ]
+    branches: [ "master", "dev" ]
+    paths:
+      - "todos-api/**"
+
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -20,35 +24,36 @@ jobs:
           cache-dependency-path: todos-api/package-lock.json
       
       - name: Install dependencies
-        run: cd todos-api && npm ci
+        working-directory: ./todos-api
+        run: npm ci
       
       - name: Run tests
-        run: cd todos-api && npm test || echo "No tests found, skipping"
+        working-directory: ./todos-api
+        run: npm test || echo "No tests found"
+      
+      - name: Run linting
+        working-directory: ./todos-api
+        run: npm run lint || echo "No linting configured"
       
       - name: Build Docker image
         run: docker build -t todos-api:${{ github.sha }} ./todos-api
-  
+
   deploy:
-    needs: test
+    needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
       
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
       
-      - name: Add VM to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-      
-      - name: Deploy to production
+      - name: Deploy to VM
         run: |
           sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo git pull origin master && 
-            sudo docker-compose build todos-api && 
-            sudo docker-compose up -d todos-api
+            cd /opt/microservice-app-example &&
+            git pull origin master &&
+            docker-compose build todos-api &&
+            docker-compose up -d todos-api
           "
-

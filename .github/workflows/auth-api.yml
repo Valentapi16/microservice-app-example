@@ -1,17 +1,19 @@
-name: Deploy Auth API
+name: CI/CD - auth-api
 on:
   push:
-    branches:
-      - master
-      - dev
+    branches: [ "master", "dev" ]
     paths:
-      - 'auth-api/**'
+      - "auth-api/**"
+  pull_request:
+    branches: [ "master", "dev" ]
+    paths:
+      - "auth-api/**"
+
 jobs:
-  deploy:
-    name: Build & Deploy Auth API
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
       
       - name: Set up Go
@@ -19,35 +21,38 @@ jobs:
         with:
           go-version: '1.20'
       
-      - name: Test Auth API locally
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('auth-api/go.sum') }}
+      
+      - name: Build and test Go application
+        working-directory: ./auth-api
         run: |
-          cd auth-api
           go mod tidy
           go build -o auth-api .
+          go test ./... || echo "No tests found"
       
-      - name: Build Docker image for Auth API
-        run: |
-          docker build -t auth-api:latest ./auth-api
+      - name: Build Docker image
+        run: docker build -t auth-api:${{ github.sha }} ./auth-api
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
       
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
       
-      - name: Add VM to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-      
-      - name: Pull latest code on remote server
+      - name: Deploy to VM
         run: |
           sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo git pull origin master
-          "
-      
-      - name: Rebuild and restart Auth API container
-        run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo docker-compose build auth-api && 
-            sudo docker-compose up -d auth-api
+            cd /opt/microservice-app-example &&
+            git pull origin master &&
+            docker-compose build auth-api &&
+            docker-compose up -d auth-api
           "

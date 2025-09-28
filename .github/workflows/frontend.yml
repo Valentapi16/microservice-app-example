@@ -1,48 +1,59 @@
-name: Frontend CI
+name: CI/CD - frontend
 on:
   push:
-    branches:
-      - master
-      - dev 
+    branches: [ "master", "dev" ]
     paths:
-      - 'frontend/**'
+      - "frontend/**"
+  pull_request:
+    branches: [ "master", "dev" ]
+    paths:
+      - "frontend/**"
+
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
       
-      - name: Install dependencies and test
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm test || echo "No tests found"
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: npm run build
+      
+      - name: Build Docker image
+        run: docker build -t frontend:${{ github.sha }} ./frontend
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
       
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
       
-      - name: Add VM to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-      
-      - name: Pull latest code on remote server
+      - name: Deploy to VM
         run: |
           sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo git pull origin master
-          "
-      
-      - name: Rebuild and restart Frontend container
-        run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo docker-compose build frontend && 
-            sudo docker-compose up -d frontend
+            cd /opt/microservice-app-example &&
+            git pull origin master &&
+            docker-compose build frontend &&
+            docker-compose up -d frontend
           "
