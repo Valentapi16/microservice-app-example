@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log*
+.npm
+dist
+.git
+.gitignore
+README.md
+dev-proxy-server.js
+*.md

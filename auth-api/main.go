@@ -16,7 +16,7 @@ import (
 var (
     ErrHttpGenericMessage = echo.NewHTTPError(http.StatusInternalServerError, "something went wrong, please try again later")
     ErrWrongCredentials   = echo.NewHTTPError(http.StatusUnauthorized, "username or password is invalid")
-    jwtSecret            = "myfancysecret"
+    jwtSecret            = "myfancysecretthatislongenoughfor256bits12345678"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
     if port := os.Getenv("AUTH_API_PORT"); port != "" {
         hostport = ":" + port
     }
-    if addr := os.Getenv("USERS_API_ADDRESS"); addr != "" {
+    if addr := os.Getenv("USERS_API_URL"); addr != "" {
         userAPIAddress = addr
     }
 

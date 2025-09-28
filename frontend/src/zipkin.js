@@ -5,7 +5,7 @@ import {
   jsonEncoder
 } from 'zipkin'
 import {HttpLogger} from 'zipkin-transport-http'
-import {zipkinInterceptor} from 'zipkin-instrumentation-vue-resource'
+import wrapAxios from 'zipkin-instrumentation-axios'
 const ZIPKIN_URL = window.location.protocol + '//' + window.location.host + '/zipkin'
 /**
 * Tracing plugin that uses Zipkin. Initiates new traces with outgoing requests
@@ -14,10 +14,9 @@ const ZIPKIN_URL = window.location.protocol + '//' + window.location.host + '/zi
 export default {
 
   /**
-   * Install the Auth class.
+   * Install the Zipkin tracing.
    *
-   * Creates a Vue-resource http interceptor to handle automatically adding auth headers
-   * and refreshing tokens. Then attaches this object to the global Vue (as Vue.auth).
+   * Creates an axios interceptor to handle automatically adding tracing headers.
    *
    * @param {Object} Vue The global Vue.
    * @param {Object} options Any options we want to have in our plugin.
@@ -36,7 +35,9 @@ export default {
       localServiceName: serviceName
     })
 
-    const interceptor = zipkinInterceptor({tracer, serviceName})
-    Vue.http.interceptors.push(interceptor)
+    // Wrap axios with zipkin instrumentation
+    const zipkinAxios = wrapAxios(Vue.http, { tracer, serviceName })
+    Vue.prototype.$http = zipkinAxios
+    Vue.http = zipkinAxios
   }
 }

@@ -26,31 +26,37 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
 
         final HttpServletRequest request = (HttpServletRequest) req;
         final HttpServletResponse response = (HttpServletResponse) res;
+        final String requestPath = request.getRequestURI();
         final String authHeader = request.getHeader("authorization");
 
-        if ("OPTIONS".equals(request.getMethod())) {
+        // Skip JWT validation for certain paths
+        if (requestPath.equals("/health") || 
+            requestPath.startsWith("/actuator/") || 
+            requestPath.startsWith("/h2/") ||
+            "OPTIONS".equals(request.getMethod())) {
+            
             response.setStatus(HttpServletResponse.SC_OK);
-
             chain.doFilter(req, res);
-        } else {
-
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                throw new ServletException("Missing or invalid Authorization header");
-            }
-
-            final String token = authHeader.substring(7);
-
-            try {
-                final Claims claims = Jwts.parser()
-                        .setSigningKey(jwtSecret.getBytes())
-                        .parseClaimsJws(token)
-                        .getBody();
-                request.setAttribute("claims", claims);
-            } catch (final SignatureException e) {
-                throw new ServletException("Invalid token");
-            }
-
-            chain.doFilter(req, res);
+            return;
         }
+
+        // Apply JWT validation for protected routes
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ServletException("Missing or invalid Authorization header");
+        }
+
+        final String token = authHeader.substring(7);
+
+        try {
+            final Claims claims = Jwts.parser()
+                    .setSigningKey(jwtSecret.getBytes())
+                    .parseClaimsJws(token)
+                    .getBody();
+            request.setAttribute("claims", claims);
+        } catch (final SignatureException e) {
+            throw new ServletException("Invalid token");
+        }
+
+        chain.doFilter(req, res);
     }
 }

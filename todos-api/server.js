@@ -1,7 +1,7 @@
 'use strict';
 const express = require('express')
 const bodyParser = require("body-parser")
-const jwt = require('express-jwt')
+const { expressjwt: jwt } = require('express-jwt')
 
 const ZIPKIN_URL = process.env.ZIPKIN_URL || 'http://127.0.0.1:9411/api/v2/spans';
 const {Tracer, 
@@ -13,23 +13,35 @@ const zipkinMiddleware = require('zipkin-instrumentation-express').expressMiddle
 
 const logChannel = process.env.REDIS_CHANNEL || 'log_channel';
 const redisClient = require("redis").createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  retry_strategy: function (options) {
-      if (options.error && options.error.code === 'ECONNREFUSED') {
-          return new Error('The server refused the connection');
+  url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`,
+  password: process.env.REDIS_PASSWORD || null,
+  socket: {
+    reconnectStrategy: function (retries) {
+      if (retries > 10) {
+        console.log('Max Redis reconnection attempts reached');
+        return false;
       }
-      if (options.total_retry_time > 1000 * 60 * 60) {
-          return new Error('Retry time exhausted');
-      }
-      if (options.attempt > 10) {
-          console.log('reattemtping to connect to redis, attempt #' + options.attempt)
-          return undefined;
-      }
-      return Math.min(options.attempt * 100, 2000);
-  }        
+      console.log(`Reconnecting to Redis, attempt #${retries}`);
+      return Math.min(retries * 100, 2000);
+    }
+  }
 });
-const port = process.env.TODO_API_PORT || 8082
+
+// Connect to Redis
+redisClient.connect().then(() => {
+  console.log('Connected to Redis successfully');
+}).catch((err) => {
+  console.error('Failed to connect to Redis:', err);
+});
+
+redisClient.on('error', (err) => {
+  console.error('Redis connection error:', err);
+});
+
+redisClient.on('ready', () => {
+  console.log('Redis client ready');
+});
+const port = process.env.TODO_API_PORT || 8080
 const jwtSecret = process.env.JWT_SECRET || "foo"
 
 const app = express()
@@ -46,15 +58,42 @@ const localServiceName = 'todos-api';
 const tracer = new Tracer({ctxImpl, recorder, localServiceName});
 
 
-app.use(jwt({ secret: jwtSecret }))
+app.use(jwt({ 
+  secret: jwtSecret, 
+  algorithms: ['HS256'],
+  requestProperty: 'user'
+}).unless({
+  path: ['/health', '/version', '/health/circuit-breaker']
+}))
+
+// Debugging middleware to check JWT payload
+app.use((req, res, next) => {
+  if (req.user) {
+    console.log('JWT payload:', JSON.stringify(req.user, null, 2));
+  } else {
+    console.log('No JWT user found in request');
+  }
+  next();
+});
+
 app.use(zipkinMiddleware({tracer}));
 app.use(function (err, req, res, next) {
   if (err.name === 'UnauthorizedError') {
     res.status(401).send({ message: 'invalid token' })
   }
+  next(err);
 })
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
+
+// Health check endpoints (no JWT required)
+app.get('/version', function (req, res) {
+  res.json({ service: 'todos-api', version: '1.0.0' })
+})
+
+app.get('/health', function (req, res) {
+  res.json({ status: 'healthy' })
+})
 
 const routes = require('./routes')
 routes(app, {tracer, redisClient, logChannel})
@@ -69,7 +108,8 @@ const CircuitBreaker = require("opossum");
 
 // Función que hace la llamada al Users API
 async function getUsers() {
-  return axios.get("http://users-api:8080/users");
+  const usersApiUrl = process.env.USERS_API_URL || "http://users-api:8080";
+  return axios.get(`${usersApiUrl}/users`);
 }
 
 // Configuración del circuit breaker

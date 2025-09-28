@@ -23,6 +23,8 @@ services:
     image: acrmicroserviceappdev.azurecr.io/auth-api:latest
     ports:
       - "8082:8080"
+    environment:
+      - JWT_SECRET=myfancysecretthatislongenoughfor256bits12345678
 
   todos-api:
     build: ./todos-api
@@ -31,6 +33,9 @@ services:
       - "8083:8080"  # Nota: Terraform espera puerto 3000, pero aquí usas 8080
     depends_on:
       - redis
+    environment:
+      - JWT_SECRET=myfancysecretthatislongenoughfor256bits12345678
+      - REDIS_HOST=redis
 
   log-processor:
     build: ./log-message-processor

@@ -153,5 +153,5 @@ func (h *UserService) getUserAPIToken(username string) (string, error) {
     claims := token.Claims.(jwt.MapClaims)
     claims["username"] = username
     claims["scope"] = "read"
-    return token.SignedString([]byte(jwtSecret))
+    return token.SignedString([]byte("myfancysecretthatislongenoughfor256bits12345678"))
 }
