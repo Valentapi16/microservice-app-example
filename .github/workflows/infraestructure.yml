@@ -2,17 +2,8 @@ name: Infrastructure CI/CD - Deploy Container Apps
 
 on:
   push:
-    branches: [ "master", "main" ]      - name: Terraform Plan & Apply (Simplified)
-        working-directory: ./infrastructure
-        run: |
-          echo "🚀 Using simplified Terraform configuration for demo..."
-          
-          # Plan and apply with existing resources
-          terraform plan -out=tfplan
-          terraform apply -auto-approve tfplan
-          
-          echo "✅ Terraform validation completed with existing infrastructure"
-          echo "🔄 Proceeding to container builds and updates..."equest:
+    branches: [ "master", "main" ]
+  pull_request:
     branches: [ "master", "main" ]
   workflow_dispatch:
 
@@ -77,7 +68,7 @@ jobs:
       - name: Terraform Plan
         working-directory: ./infrastructure
         run: |
-          terraform plan -out=tfplan -var="location=${{ env.AZURE_REGION }}"
+          terraform plan -out=tfplan
           echo "✅ Infrastructure planning completed successfully!"
       
       - name: Upload Plan
@@ -109,16 +100,17 @@ jobs:
         working-directory: ./infrastructure
         run: terraform init -backend=false
       
-      - name: Simplified Infrastructure Deployment
+      - name: Terraform Plan & Apply (Simplified)
         working-directory: ./infrastructure
         run: |
-          echo "� Starting infrastructure deployment..."
+          echo "🚀 Using simplified Terraform configuration for demo..."
           
-          # For demo purposes, skip terraform and proceed directly to container deployment
-          echo "⚠️ Skipping Terraform deployment for demo (infrastructure already exists)"
-          echo "✅ Using existing resource group: rg-microservice-dev"
-          echo "✅ Using existing ACR: acrmicroserviceappdeva6b3d4b9"
-          echo "� Proceeding to container builds and updates..."
+          # Plan and apply with existing resources
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+          
+          echo "✅ Terraform validation completed with existing infrastructure"
+          echo "🔄 Proceeding to container builds and updates..."
       
       - name: Get Infrastructure Outputs
         working-directory: ./infrastructure
