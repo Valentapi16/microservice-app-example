@@ -59,6 +59,16 @@ const localServiceName = 'todos-api';
 const tracer = new Tracer({ctxImpl, recorder, localServiceName});
 
 
+// Health check route (before JWT middleware)
+app.get('/health', function(req, res) {
+  res.status(200).send('OK');
+});
+
+// Version route (before JWT middleware) 
+app.get('/version', function(req, res) {
+  res.json({ service: 'todos-api', version: '1.0.0', status: 'running' });
+});
+
 app.use(jwt({ secret: jwtSecret }))
 app.use(zipkinMiddleware({tracer}));
 app.use(function (err, req, res, next) {
