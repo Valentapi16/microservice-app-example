@@ -1,30 +1,116 @@
-var utils = require('./utils')
-var webpack = require('webpack')
-var config = require('../config')
-var merge = require('webpack-merge')
-var baseWebpackConfig = require('./webpack.base.conf')
-var HtmlWebpackPlugin = require('html-webpack-plugin')
-var FriendlyErrorsPlugin = require('friendly-errors-webpack-plugin')
+const path = require('path')
+const webpack = require('webpack')
+const { merge } = require('webpack-merge')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const FriendlyErrorsPlugin = require('friendly-errors-webpack-plugin')
+const { VueLoaderPlugin } = require('vue-loader')
 
-// add hot-reload related code to entry chunks
-Object.keys(baseWebpackConfig.entry).forEach(function (name) {
-  baseWebpackConfig.entry[name] = ['./build/dev-client'].concat(baseWebpackConfig.entry[name])
-})
+const baseWebpackConfig = {
+  context: path.resolve(__dirname, '../'),
+  entry: {
+    app: './src/main.js'
+  },
+  output: {
+    path: path.resolve(__dirname, '../dist'),
+    filename: '[name].js',
+    publicPath: '/'
+  },
+  resolve: {
+  extensions: ['.js', '.vue', '.json'],
+  alias: {
+    'vue$': 'vue/dist/vue.esm.js',
+    '@': path.resolve(__dirname, '../src'),
+  },
+  fallback: {
+    "os": false,
+    "url": false
+  }
+},
+  module: {
+    rules: [
+      {
+        test: /\.vue$/,
+        loader: 'vue-loader'
+      },
+      {
+        test: /\.js$/,
+        loader: 'babel-loader',
+        include: [path.resolve(__dirname, '../src')]
+      },
+      {
+        test: /\.css$/,
+        use: ['vue-style-loader', 'css-loader']
+      },
+      {
+        test: /\.scss$/,
+        use: ['vue-style-loader', 'css-loader', 'sass-loader']
+      },
+      {
+        test: /\.(png|jpe?g|gif|svg)(\?.*)?$/,
+        loader: 'url-loader',
+        options: {
+          limit: 10000,
+          name: 'img/[name].[hash:7].[ext]'
+        }
+      },
+      {
+        test: /\.(mp4|webm|ogg|mp3|wav|flac|aac)(\?.*)?$/,
+        loader: 'url-loader',
+        options: {
+          limit: 10000,
+          name: 'media/[name].[hash:7].[ext]'
+        }
+      },
+      {
+        test: /\.(woff2?|eot|ttf|otf)(\?.*)?$/,
+        loader: 'url-loader',
+        options: {
+          limit: 10000,
+          name: 'fonts/[name].[hash:7].[ext]'
+        }
+      }
+    ]
+  },
+  plugins: [
+    new VueLoaderPlugin()
+  ],
+  node: false
+}
 
 module.exports = merge(baseWebpackConfig, {
-  module: {
-    rules: utils.styleLoaders({ sourceMap: config.dev.cssSourceMap })
+  mode: 'development',
+  devtool: 'eval-cheap-module-source-map',
+  
+  devServer: {
+    port: 8080,
+    host: '0.0.0.0',
+    historyApiFallback: true,
+    hot: true,
+    compress: true,
+    open: true,
+    proxy: {
+      '/api': {
+        target: process.env.API_URL || 'http://localhost:8083',
+        changeOrigin: true
+      },
+      '/login': {
+        target: 'http://localhost:8082',
+        changeOrigin: true
+      },
+      '/todos': {
+        target: 'http://localhost:8083',
+        changeOrigin: true
+      }
+    }
   },
-  // cheap-module-eval-source-map is faster for development
-  devtool: '#cheap-module-eval-source-map',
+
   plugins: [
     new webpack.DefinePlugin({
-      'process.env': config.dev.env
+      'process.env': {
+        NODE_ENV: '"development"'
+      }
     }),
-    // https://github.com/glenjamin/webpack-hot-middleware#installation--usage
     new webpack.HotModuleReplacementPlugin(),
-    new webpack.NoEmitOnErrorsPlugin(),
-    // https://github.com/ampedandwired/html-webpack-plugin
     new HtmlWebpackPlugin({
       filename: 'index.html',
       template: 'index.html',

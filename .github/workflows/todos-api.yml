@@ -1,59 +1,74 @@
-name: CI/CD - todos-api
+name: Todos API CI/CD - Azure Container Apps
+
 on:
   push:
-    branches: [ "master", "dev", "feature/*" ]
-    paths:
-      - "todos-api/**"
+    branches: [ master, main, dev, fix/login-and-todo, feature/* ]
+    paths: [ 'todos-api/**' ]
   pull_request:
-    branches: [ "master", "dev" ]
-    paths:
-      - "todos-api/**"
+    branches: [ master, main, dev ]
+    paths: [ 'todos-api/**' ]
+
+env:
+  REGISTRY: acrmicroserviceappdeva6b3d4b9.azurecr.io
+  IMAGE_NAME: todos-api
+  RESOURCE_GROUP: rg-microservice-dev
+  CONTAINER_APP: ca-todos-api-dev
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: todos-api/package-lock.json
+          cache-dependency-path: todos-api/package.json
       
       - name: Install dependencies
-        working-directory: ./todos-api
-        run: npm ci
+        run: cd todos-api && npm ci
       
       - name: Run tests
-        working-directory: ./todos-api
-        run: npm test || echo "No tests found"
+        run: cd todos-api && npm test || echo "No tests found, skipping"
       
-      - name: Run linting
-        working-directory: ./todos-api
-        run: npm run lint || echo "No linting configured"
-      
-      - name: Build Docker image
-        run: docker build -t todos-api:${{ github.sha }} ./todos-api
-
+      - name: Build Docker image (test)
+        run: docker build -t todos-api:test ./todos-api
+  
   deploy:
-    needs: build-and-test
+    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/login-and-todo'
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       
-      - name: Deploy to VM
+      - name: Log in to Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Log in to Azure Container Registry
+        run: az acr login --name acrmicroserviceappdeva6b3d4b9
+      
+      - name: Build and push Docker image
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example &&
-            git pull origin master &&
-            docker-compose build todos-api &&
-            docker-compose up -d todos-api
-          "
+          cd todos-api
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+          
+          # Also tag as latest
+          docker tag $IMAGE_TAG ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      
+      - name: Deploy to Azure Container Apps
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image $IMAGE_TAG

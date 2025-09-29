@@ -89,7 +89,10 @@ export default {
 
       this.$auth.login(credentials, 'todos').then(response => {
         this.loggingIn = false
-        this.errorMessage = response.body.message
+      }).catch(error => {
+        this.loggingIn = false
+        const errorData = error.response ? error.response.data : error
+        this.errorMessage = errorData.message || 'Login failed'
       })
     }
   },

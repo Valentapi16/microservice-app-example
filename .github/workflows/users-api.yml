@@ -1,26 +1,33 @@
-name: CI/CD - users-api
+name: Users API CI/CD - Azure Container Apps
+
 on:
   push:
-    branches: [ "master", "dev" ]
+    branches:
+      - master
+      - main
+      - dev
+      - fix/login-and-todo
     paths:
-      - "users-api/**"
-  pull_request:
-    branches: [ "master", "dev" ]
-    paths:
-      - "users-api/**"
+      - 'users-api/**'
+
+env:
+  REGISTRY: acrmicroserviceappdeva6b3d4b9.azurecr.io
+  IMAGE_NAME: users-api
+  RESOURCE_GROUP: rg-microservice-dev
+  CONTAINER_APP: ca-users-api-dev
 
 jobs:
-  build-and-test:
+  test-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source code
+      - name: Checkout code
         uses: actions/checkout@v4
       
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
+          distribution: 'temurin'
       
       - name: Cache Maven dependencies
         uses: actions/cache@v3
@@ -28,43 +35,41 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('users-api/pom.xml') }}
       
-      - name: Build JAR with Maven
-        working-directory: ./users-api
+      - name: Test Users API
         run: |
-          if [ -f "./mvnw" ]; then
-            ./mvnw clean package -DskipTests
-          else
-            mvn clean package -DskipTests
-          fi
+          cd users-api
+          mvn clean compile test
       
-      - name: Run tests
-        working-directory: ./users-api
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/login-and-todo'
+      
+      - name: Log in to Azure Container Registry
+        run: az acr login --name acrmicroserviceappdeva6b3d4b9
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/login-and-todo'
+      
+      - name: Build and push Docker image
         run: |
-          if [ -f "./mvnw" ]; then
-            ./mvnw test
-          else
-            mvn test
-          fi
+          cd users-api
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+          
+          # Also tag as latest
+          docker tag $IMAGE_TAG ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/login-and-todo'
       
-      - name: Build Docker image
-        run: docker build -t users-api:${{ github.sha }} ./users-api
-
-  deploy:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-      
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
-      
-      - name: Deploy to VM
+      - name: Deploy to Azure Container Apps
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example &&
-            git pull origin master &&
-            docker-compose build users-api &&
-            docker-compose up -d users-api
-          "
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image $IMAGE_TAG
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/login-and-todo'

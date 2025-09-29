@@ -43,7 +43,7 @@
                   <todo-item v-for="(todo, index) in tasks"
                             @remove="removeTask(index)"
                             :todo="todo"
-                            :key="index"
+                            :key="todo.id || `todo-${index}`"
                   ></todo-item>
         </transition-group>
       </div>
@@ -87,13 +87,15 @@ export default {
       this.isProcessing = true
       this.errorMessage = ''
       this.$http.get('/todos').then(response => {
-        for (var i in response.body) {
-          this.tasks.push(response.body[i])
+        for (var i in response.data) {
+          this.tasks.push(response.data[i])
         }
         this.isProcessing = false
       }, error => {
         this.isProcessing = false
-        this.errorMessage = JSON.stringify(error.body) + '. Response code: ' + error.status
+        const errorData = error.response ? error.response.data : error.message
+        const errorStatus = error.response ? error.response.status : 'Network Error'
+        this.errorMessage = JSON.stringify(errorData) + '. Response code: ' + errorStatus
       })
     },
 
@@ -112,7 +114,9 @@ export default {
           this.tasks.push(task)
         }, error => {
           this.isProcessing = false
-          this.errorMessage = JSON.stringify(error.body) + '. Response code: ' + error.status
+          const errorData = error.response ? error.response.data : error.message
+          const errorStatus = error.response ? error.response.status : 'Network Error'
+          this.errorMessage = JSON.stringify(errorData) + '. Response code: ' + errorStatus
         })
       }
     },
@@ -128,7 +132,9 @@ export default {
         this.tasks.splice(index, 1)
       }, error => {
         this.isProcessing = false
-        this.errorMessage = JSON.stringify(error.body) + '. Response code: ' + error.status
+        const errorData = error.response ? error.response.data : error.message
+        const errorStatus = error.response ? error.response.status : 'Network Error'
+        this.errorMessage = JSON.stringify(errorData) + '. Response code: ' + errorStatus
       })
     }
   }

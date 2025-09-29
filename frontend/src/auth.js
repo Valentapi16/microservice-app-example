@@ -1,8 +1,7 @@
 import Vue from 'vue'
 import router from './router'
 import store from './store'
-import decode from 'jwt-decode'
-
+import { jwtDecode as decode } from 'jwt-decode'
 /**
  * @var{string} LOGIN_URL The endpoint for logging in. This endpoint should be proxied by Webpack dev server
  *    and maybe nginx in production (cleaner calls and avoids CORS issues).
@@ -30,17 +29,6 @@ export default {
    * @return {void}
    */
   install (Vue, options) {
-    Vue.http.interceptors.push((request, next) => {
-      const token = store.state.auth.accessToken
-      const hasAuthHeader = request.headers.has('Authorization')
-
-      if (token && !hasAuthHeader) {
-        this.setAuthHeader(request)
-      }
-
-      next()
-    })
-
     Vue.prototype.$auth = Vue.auth = this
   },
 
@@ -86,13 +74,13 @@ export default {
   },
 
   /**
-   * Set the Authorization header on a Vue-resource Request.
+   * Set the Authorization header on an Axios Request.
    *
-   * @param {Request} request The Vue-Resource Request instance to set the header on.
+   * @param {Object} config The Axios config instance to set the header on.
    * @return {void}
    */
-  setAuthHeader (request) {
-    request.headers.set('Authorization', 'Bearer ' + store.state.auth.accessToken)
+  setAuthHeader (config) {
+    config.headers.Authorization = 'Bearer ' + store.state.auth.accessToken
   },
 
   isAdmin () {
@@ -111,13 +99,13 @@ export default {
    * Let's retry the user's original target request that had recieved a invalid token response
    * (which we fixed with a token refresh).
    *
-   * @param {Request} request The Vue-resource Request instance to use to repeat an http call.
+   * @param {Object} config The Axios config instance to use to repeat an http call.
    * @return {Promise}
    */
-  _retry (request) {
-    this.setAuthHeader(request)
+  _retry (config) {
+    this.setAuthHeader(config)
 
-    return Vue.http(request)
+    return Vue.http(config)
       .then((response) => {
         return response
       })
@@ -133,14 +121,14 @@ export default {
    * the Oauth2 server.
    *
    * @private
-   * @param {Response} response Vue-resource Response instance from an OAuth2 server.
+   * @param {Response} response Axios Response instance from an OAuth2 server.
    *      that contains our tokens.
    * @return {void}
    */
   _storeToken (response) {
     const auth = store.state.auth
     auth.isLoggedIn = true
-    auth.accessToken = response.body.accessToken
+    auth.accessToken = response.data.accessToken
 
     var userData = decode(auth.accessToken)
 
