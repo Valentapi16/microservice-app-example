@@ -1,13 +1,21 @@
-name: Users API CI
+name: Users API CI/CD - Azure Container Apps
 on:
   push:
     branches:
       - master
+      - main
       - dev
+      - infra/feature/terraform-infra-implementation
     paths:
       - 'users-api/**'
+
+env:
+  REGISTRY: acrmicroserviceappdeva6b3d4b9.azurecr.io
+  IMAGE_NAME: users-api
+  RESOURCE_GROUP: rg-microservice-dev
+  CONTAINER_APP: ca-users-api-dev
 jobs:
-  build:
+  test-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,34 +33,32 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('users-api/pom.xml') }}
       
-      - name: Test Users API locally
+      - name: Test Users API
         run: |
           cd users-api
           mvn clean compile test
       
-      - name: Build Docker image for Users API
-        run: |
-          docker build -t users-api:latest ./users-api
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
       
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
-      
-      - name: Add VM to known_hosts
+      - name: Build and push Docker image
         run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
+          cd users-api
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
       
-      - name: Pull latest code on remote server
-        run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo git pull origin master
-          "
+      - name: Login to Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
       
-      - name: Rebuild and restart Users API container
+      - name: Update Container App
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
-            cd /opt/microservice-app-example && 
-            sudo docker-compose build users-api && 
-            sudo docker-compose up -d users-api
-          "
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
