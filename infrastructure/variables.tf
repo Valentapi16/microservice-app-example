@@ -1,3 +1,4 @@
+# Infrastructure variables - Updated for demo
 variable "project_name" {
   description = "Name of the project"
   type        = string

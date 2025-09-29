@@ -41,7 +41,10 @@ jobs:
         run: terraform validate
       
       - name: Infrastructure Validation Complete
-        run: echo "✅ Infrastructure validation passed successfully!"
+        run: |
+          echo "✅ Infrastructure validation passed successfully!"
+          echo "🏗️ Container Apps infrastructure validated"
+          echo "📋 Ready for deployment"
 
   
   plan:
