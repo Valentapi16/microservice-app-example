@@ -1,7 +1,7 @@
 {
   "name": "todos-api",
-  "version": "1.0.0",
-  "description": "API for Todos in my little example app",
+  "version": "1.1.0",
+  "description": "API for Todos with Cache Aside and Circuit Breaker patterns",
   "main": "index.js",
   "scripts": {
     "start": "nodemon server.js"
