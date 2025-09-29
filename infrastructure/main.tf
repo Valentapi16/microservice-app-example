@@ -17,6 +17,12 @@ resource "azurerm_resource_group" "main" {
     Environment = var.environment
     Project     = var.project_name
   }
+  
+  lifecycle {
+    ignore_changes = [
+      tags,
+    ]
+  }
 }
 
 # Container Registry
