@@ -68,9 +68,9 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 # Container App Environment (plataforma moderna para contenedores)
 resource "azurerm_container_app_environment" "main" {
-  name                     = "cae-${var.project_name}-${var.environment}"
-  location                 = azurerm_resource_group.main.location
-  resource_group_name      = azurerm_resource_group.main.name
+  name                       = "cae-${var.project_name}-${var.environment}"
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
 
   tags = {
@@ -93,7 +93,7 @@ resource "azurerm_container_app" "frontend" {
 
   registry {
     server               = azurerm_container_registry.main.login_server
-    username            = azurerm_container_registry.main.admin_username
+    username             = azurerm_container_registry.main.admin_username
     password_secret_name = "registry-password"
   }
 
@@ -129,17 +129,17 @@ resource "azurerm_container_app" "frontend" {
       }
     }
 
-    min_replicas = 1  # CAMBIAR DE 0 A 1 para evitar cold starts
+    min_replicas = 1 # CAMBIAR DE 0 A 1 para evitar cold starts
     max_replicas = 10
   }
 
   ingress {
     allow_insecure_connections = false
-    external_enabled          = true
-    target_port              = 80
-    
+    external_enabled           = true
+    target_port                = 80
+
     traffic_weight {
-      percentage = 100
+      percentage      = 100
       latest_revision = true
     }
   }
@@ -165,7 +165,7 @@ resource "azurerm_container_app" "users_api" {
 
   registry {
     server               = azurerm_container_registry.main.login_server
-    username            = azurerm_container_registry.main.admin_username
+    username             = azurerm_container_registry.main.admin_username
     password_secret_name = "registry-password"
   }
 
@@ -223,11 +223,11 @@ resource "azurerm_container_app" "users_api" {
 
   ingress {
     allow_insecure_connections = false
-    external_enabled          = true
-    target_port              = 8080
-    
+    external_enabled           = true
+    target_port                = 8080
+
     traffic_weight {
-      percentage = 100
+      percentage      = 100
       latest_revision = true
     }
   }
@@ -247,7 +247,7 @@ resource "azurerm_container_app" "auth_api" {
 
   registry {
     server               = azurerm_container_registry.main.login_server
-    username            = azurerm_container_registry.main.admin_username
+    username             = azurerm_container_registry.main.admin_username
     password_secret_name = "registry-password"
   }
 
@@ -278,7 +278,7 @@ resource "azurerm_container_app" "auth_api" {
       }
       env {
         name  = "REDIS_PORT"
-        value = "6380"  # SSL port
+        value = "6380" # SSL port
       }
       env {
         name  = "USERS_API_URL"
@@ -300,11 +300,11 @@ resource "azurerm_container_app" "auth_api" {
 
   ingress {
     allow_insecure_connections = false
-    external_enabled          = true
-    target_port              = 8080
-    
+    external_enabled           = true
+    target_port                = 8080
+
     traffic_weight {
-      percentage = 100
+      percentage      = 100
       latest_revision = true
     }
   }
@@ -326,7 +326,7 @@ resource "azurerm_container_app" "todos_api" {
 
   registry {
     server               = azurerm_container_registry.main.login_server
-    username            = azurerm_container_registry.main.admin_username
+    username             = azurerm_container_registry.main.admin_username
     password_secret_name = "registry-password"
   }
 
@@ -366,7 +366,7 @@ resource "azurerm_container_app" "todos_api" {
       }
       env {
         name  = "REDIS_PORT"
-        value = "6380"  # SSL port
+        value = "6380" # SSL port
       }
       env {
         name  = "AUTH_API_URL"
@@ -413,11 +413,11 @@ resource "azurerm_container_app" "todos_api" {
 
   ingress {
     allow_insecure_connections = false
-    external_enabled          = true
-    target_port              = 8080
-    
+    external_enabled           = true
+    target_port                = 8080
+
     traffic_weight {
-      percentage = 100
+      percentage      = 100
       latest_revision = true
     }
   }
@@ -439,7 +439,7 @@ resource "azurerm_container_app" "log_processor" {
 
   registry {
     server               = azurerm_container_registry.main.login_server
-    username            = azurerm_container_registry.main.admin_username
+    username             = azurerm_container_registry.main.admin_username
     password_secret_name = "registry-password"
   }
 
@@ -470,7 +470,7 @@ resource "azurerm_container_app" "log_processor" {
       }
       env {
         name  = "REDIS_PORT"
-        value = "6380"  # SSL port
+        value = "6380" # SSL port
       }
       env {
         name        = "REDIS_PASSWORD"
@@ -484,11 +484,11 @@ resource "azurerm_container_app" "log_processor" {
 
   ingress {
     allow_insecure_connections = false
-    external_enabled          = true
-    target_port              = 8080
-    
+    external_enabled           = true
+    target_port                = 8080
+
     traffic_weight {
-      percentage = 100
+      percentage      = 100
       latest_revision = true
     }
   }
@@ -505,14 +505,14 @@ resource "azurerm_container_app" "log_processor" {
 
 # CosmosDB (opcional) - solo si enable_cosmosdb = true
 resource "azurerm_cosmosdb_account" "main" {
-  count                     = var.enable_cosmosdb ? 1 : 0
-  name                      = "cosmos-${var.project_name}-${var.environment}-${random_id.suffix.hex}"
-  location                  = azurerm_resource_group.main.location
-  resource_group_name       = azurerm_resource_group.main.name
-  offer_type                = "Standard"
-  kind                      = "GlobalDocumentDB"
-  
-  automatic_failover_enabled = false
+  count               = var.enable_cosmosdb ? 1 : 0
+  name                = "cosmos-${var.project_name}-${var.environment}-${random_id.suffix.hex}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  offer_type          = "Standard"
+  kind                = "GlobalDocumentDB"
+
+  automatic_failover_enabled       = false
   multiple_write_locations_enabled = false
 
   consistency_policy {

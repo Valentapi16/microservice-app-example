@@ -13,7 +13,7 @@ variable "environment" {
 variable "location" {
   description = "Azure region"
   type        = string
-  default     = "Central US"  # Región más compatible con cuentas estudiantiles
+  default     = "Central US" # Región más compatible con cuentas estudiantiles
 }
 
 variable "resource_group_name" {
