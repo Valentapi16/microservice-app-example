@@ -42,7 +42,7 @@ console.log('Connecting to Redis with config:', {
 });
 
 const redisClient = require("redis").createClient(redisConfig);
-const port = process.env.TODO_API_PORT || 8082
+const port = process.env.TODO_API_PORT || 8080
 const jwtSecret = process.env.JWT_SECRET || "foo"
 
 const app = express()
