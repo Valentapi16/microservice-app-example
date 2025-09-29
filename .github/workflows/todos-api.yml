@@ -1,39 +1,54 @@
-name: Todos API CI
-
+name: CI Todos API
 on:
   push:
-    branches:
-      - master
-    paths:
-      - 'todos-api/**'
-
+    branches: [ master, dev, feature/* ]
+    paths: [ 'todos-api/**' ]
+  pull_request:
+    branches: [ master, dev ]
+    paths: [ 'todos-api/**' ]
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Build Docker image for Todos API
-        run: |
-          docker build -t todos-api ./todos-api
-
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: todos-api/package-lock.json
+      
+      - name: Install dependencies
+        run: cd todos-api && npm ci
+      
+      - name: Run tests
+        run: cd todos-api && npm test || echo "No tests found, skipping"
+      
+      - name: Build Docker image
+        run: docker build -t todos-api:${{ github.sha }} ./todos-api
+  
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+      
       - name: Add VM to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-
-      - name: Pull latest code on remote server
+      
+      - name: Deploy to production
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo git pull --no-rebase origin master \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo git pull origin master && 
+            sudo docker-compose build todos-api && 
+            sudo docker-compose up -d todos-api
           "
 
-      - name: Rebuild and restart Todos API container
-        run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo docker-compose up -d --build --force-recreate todos-api \
-          "

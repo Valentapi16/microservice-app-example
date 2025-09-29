@@ -1,39 +1,46 @@
 name: Log Message Processor CI
-
 on:
   push:
     branches:
       - master
+      - dev
     paths:
       - 'log-message-processor/**'
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js (if it's Node.js based)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
       - name: Build Docker image for Log-Message-Processor
         run: |
-          docker build -t log-message-processor ./log-message-processor
-
+          docker build -t log-message-processor:latest ./log-message-processor
+      
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+      
       - name: Add VM to known_hosts
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VM_IP_KEY }} >> ~/.ssh/known_hosts
-
+      
       - name: Pull latest code on remote server
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo git pull --no-rebase origin master \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo git pull origin master
           "
-
+      
       - name: Rebuild and restart log-message-processor container
         run: |
-          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "\
-            cd /opt/microservice-app-example && \
-            sudo docker-compose up -d --build --force-recreate log-message-processor \
+          sshpass -p "${{ secrets.VM_PASSWORD_KEY }}" ssh -o StrictHostKeyChecking=no azureuser@${{ secrets.VM_IP_KEY }} "
+            cd /opt/microservice-app-example && 
+            sudo docker-compose build log-processor && 
+            sudo docker-compose up -d log-processor
           "
