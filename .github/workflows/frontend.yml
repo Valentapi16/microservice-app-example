@@ -6,7 +6,7 @@ on:
       - master
       - main
       - dev 
-      - fix/login-and-todo
+      - infra/feature/terraform-infra-implementation
     paths:
       - 'frontend/**'
 
