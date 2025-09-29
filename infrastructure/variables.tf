@@ -27,3 +27,15 @@ variable "allowed_ips" {
   type        = list(string)
   default     = ["0.0.0.0/0"] # Cambiar en producción
 }
+
+variable "enable_cosmosdb" {
+  description = "Enable CosmosDB deployment (requires sufficient quota)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_application_insights" {
+  description = "Enable Application Insights deployment"
+  type        = bool
+  default     = false
+}
