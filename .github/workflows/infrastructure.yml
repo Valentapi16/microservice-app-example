@@ -2,10 +2,10 @@ name: Infrastructure Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop, fix/login-and-todo]
     paths: ['infrastructure/**']
   pull_request:
-    branches: [main]
+    branches: [main, master]
     paths: ['infrastructure/**']
 
 env:
@@ -43,4 +43,4 @@ jobs:
       run: |
         cd infrastructure
         terraform apply -auto-approve -no-color
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/fix/login-and-todo') && github.event_name == 'push'
