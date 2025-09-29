@@ -1,6 +1,8 @@
 # Authentication API
 
 This part of the exercise is responsible for the users authentication.
+
+**Cloud Patterns**: JWT-based federated identity pattern implementation.
 - `POST /login` - takes a JSON and returns an access token
 
 The JSON structure is:

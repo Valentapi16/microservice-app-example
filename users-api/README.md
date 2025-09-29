@@ -1,6 +1,8 @@
 # Users API
 This service is written in Java with SpringBoot. It provides simple API to retrieve user data.
 
+**Cloud Patterns**: Integrated with Container Apps auto-scaling and federated identity patterns.
+
 - `GET /users` - list all users
 - `GET /users/:username` - get a user by name
 

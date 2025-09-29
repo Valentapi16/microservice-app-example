@@ -1,7 +1,7 @@
 {
   "name": "frontend",
-  "version": "1.0.0",
-  "description": "UI for sample distributed TODO app",
+  "version": "1.0.1",
+  "description": "UI for sample distributed TODO app with Cloud Patterns",
   "author": "elgris <iddqd07@yandex.ru>",
   "private": true,
   "scripts": {

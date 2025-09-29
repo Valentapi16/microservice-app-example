@@ -2,6 +2,8 @@
 This service is written in Python. This is a consumer that listens for
 new messages in Redis queue and prints message content to the standard output.
 
+**Cloud Patterns**: Message queue processing with Redis integration and auto-scaling.
+
 ## Configuration
 
 The service scans environment for variables:
