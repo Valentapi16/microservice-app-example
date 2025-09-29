@@ -1,5 +1,5 @@
 # Microservice App - DevOps & Cloud Design Patterns Implementation
-
+## Isabella Ocampo Soto, Valentina Gonzalez Tapiero
 ## 🎯 Workshop Overview
 
 This project demonstrates a complete implementation of DevOps practices and Cloud Design Patterns for a microservice-based TODO application. The workshop covers infrastructure and code pipeline construction following agile methodologies, addressing both development and operations perspectives.
