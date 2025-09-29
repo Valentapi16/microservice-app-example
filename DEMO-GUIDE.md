@@ -75,22 +75,35 @@ max_replicas = 10
 - 📊 **Puntos**: **15%**
 
 #### **MINUTO 6-7: PIPELINE DE INFRAESTRUCTURA**
-**Mostrar:**
+**Mostrar pipeline completa ejecutándose:**
 ```yaml
-# infraestructure.yml ejecutándose
-✅ Terraform validate
-✅ Infrastructure as Code
-✅ Azure Container Apps provisioning
+# infraestructure.yml - PIPELINE COMPLETA
+✅ Terraform validate, init, plan
+✅ Infrastructure deployment (apply)
+✅ Docker build & push (all microservices)
+✅ Container Apps update (automated)
+✅ Full end-to-end deployment
 ```
+- 🔧 **Proceso Completo**:
+  - Terraform infrastructure provisioning
+  - Multi-service Docker builds
+  - Container registry push
+  - Container Apps live update
 - 📊 **Puntos**: **5%**
 
 #### **MINUTO 7-8: IMPLEMENTACIÓN DE INFRAESTRUCTURA**
-**Abrir Azure Portal:**
+**Abrir Azure Portal para mostrar:**
 - 🏗️ **Resource Group**: `rg-microservice-dev`
-- 📦 **Container Apps**: Todos los microservicios desplegados
-- 🗄️ **CosmosDB**: Base de datos
+- 📦 **Container Apps**: 5 microservicios desplegados automáticamente
+- 🗄️ **CosmosDB**: Base de datos NoSQL
 - 🔄 **Redis Cache**: Para Cache Aside pattern
-- 📊 **ACR**: Registry de contenedores
+- 📊 **ACR**: Registry con imágenes recién pusheadas
+- 🚀 **Live Applications**: URLs funcionando en tiempo real
+
+**Mostrar proceso en tiempo real:**
+- ✅ Pipeline desplegando infrastructure + aplicaciones
+- ✅ Container Apps actualizándose automáticamente
+- ✅ URLs de aplicaciones funcionando
 - 📊 **Puntos**: **20%**
 
 ### 🎯 DEMOSTRACIÓN EN VIVO (Última parte)
@@ -125,17 +138,29 @@ https://ca-frontend-dev.nicegrass-[hash].westus2.azurecontainerapps.io
 
 ### 🚨 BACKUP PLAN (Si algo falla)
 
-**Si las pipelines no terminan a tiempo:**
-1. Mostrar pipelines ejecutándose (proceso en vivo)
-2. Explicar que el deployment toma ~3-5 min normalmente
-3. Mostrar commits previos exitosos
-4. Enfocar en la documentación y código implementado
+**Si la pipeline de infraestructura no termina:**
+1. Mostrar el progreso en tiempo real (validate → plan → deploy)
+2. Explicar que el full deployment toma ~5-7 min normalmente
+3. Mostrar logs del proceso: Terraform apply → Docker builds → Container Apps update
+4. Enfatizar que es un deployment completo end-to-end
+
+**Si el deployment falla en algún step:**
+1. Mostrar que el proceso llegó hasta X paso exitosamente
+2. Explicar que el deployment parcial ya muestra la funcionalidad
+3. Mostrar la infraestructura existente en Azure Portal
+4. Enfocar en el código de pipeline (proceso completo implementado)
 
 **Si GitHub Actions no responde:**
 1. Mostrar archivos de pipeline localmente
-2. Explicar la configuración step by step
+2. Explicar el workflow completo step by step
 3. Mostrar la infraestructura en Azure Portal
-4. Enfocar en los patrones implementados en código
+4. Demostrar con commits previos exitosos
+
+**Puntos clave a destacar si algo falla:**
+- ✅ Pipeline completa implementada (infra + apps)
+- ✅ Terraform IaC funcional
+- ✅ Multi-service Docker deployment
+- ✅ Container Apps auto-update process
 
 ### ✅ CHECKLIST PRE-DEMO
 

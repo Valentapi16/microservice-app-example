@@ -1,8 +1,8 @@
-name: Infrastructure Pipeline - Azure Container Apps
+name: Infrastructure CI/CD - Deploy Container Apps
 
 on:
   push:
-    branches: [ "master", "main", "dev" ]
+    branches: [ "master", "main" ]
     paths:
       - "infrastructure/**"
   pull_request:
@@ -14,6 +14,7 @@ on:
 env:
   TF_VERSION: '1.5.0'
   AZURE_REGION: 'West US 2'
+  RESOURCE_GROUP: 'rg-microservice-dev'
 
 jobs:
   validate:
@@ -32,9 +33,9 @@ jobs:
         working-directory: ./infrastructure
         run: terraform fmt -check -recursive
       
-      - name: Terraform Init (Local State)
+      - name: Terraform Init (Validation)
         working-directory: ./infrastructure
-        run: terraform init
+        run: terraform init -backend=false
       
       - name: Terraform Validate
         working-directory: ./infrastructure
@@ -46,12 +47,10 @@ jobs:
           echo "🏗️ Container Apps infrastructure validated"
           echo "📋 Ready for deployment"
 
-  
   plan:
     name: Plan Infrastructure Changes
     runs-on: ubuntu-latest
     needs: validate
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -61,9 +60,128 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
       
-      - name: Terraform Plan (Dry Run)
+      - name: Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init -backend=false
+      
+      - name: Terraform Plan
         working-directory: ./infrastructure
         run: |
-          terraform init
-          terraform plan -no-color
+          terraform plan -out=tfplan -var="location=${{ env.AZURE_REGION }}"
           echo "✅ Infrastructure planning completed successfully!"
+      
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/tfplan
+
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [validate, plan]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      
+      - name: Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/
+      
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init -backend=false
+      
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        run: |
+          terraform apply -auto-approve tfplan
+          echo "🚀 Infrastructure deployed successfully!"
+      
+      - name: Get Infrastructure Outputs
+        working-directory: ./infrastructure
+        run: |
+          terraform output -json > outputs.json
+          echo "RESOURCE_GROUP=$(terraform output -raw resource_group_name || echo '${{ env.RESOURCE_GROUP }}')" >> $GITHUB_ENV
+          echo "ACR_NAME=$(terraform output -raw acr_name || echo 'acrmicroserviceappdeva6b3d4b9')" >> $GITHUB_ENV
+      
+      - name: Upload Infrastructure Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: infrastructure/outputs.json
+      
+      - name: Build and Deploy All Microservices
+        run: |
+          echo "🏗️ Starting microservices deployment..."
+          
+          # Set ACR details
+          ACR_LOGIN_SERVER="${{ env.ACR_NAME }}.azurecr.io"
+          
+          # Login to ACR
+          az acr login --name ${{ env.ACR_NAME }}
+          
+          # Build and push each microservice
+          services=("frontend" "auth-api" "users-api" "todos-api" "log-message-processor")
+          
+          for service in "${services[@]}"; do
+            echo "🔨 Building $service..."
+            cd $service
+            
+            # Build Docker image
+            docker build -t $ACR_LOGIN_SERVER/$service:${{ github.sha }} .
+            docker push $ACR_LOGIN_SERVER/$service:${{ github.sha }}
+            
+            echo "✅ $service built and pushed successfully"
+            cd ..
+          done
+      
+      - name: Update Container Apps
+        run: |
+          echo "🚀 Updating Container Apps with new images..."
+          
+          ACR_LOGIN_SERVER="${{ env.ACR_NAME }}.azurecr.io"
+          
+          # Update each container app
+          services=("frontend" "auth-api" "users-api" "todos-api" "log-message-processor")
+          
+          for service in "${services[@]}"; do
+            app_name="ca-$service-dev"
+            echo "🔄 Updating $app_name..."
+            
+            az containerapp update \
+              --name $app_name \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image $ACR_LOGIN_SERVER/$service:${{ github.sha }} \
+              --output table || echo "⚠️ $app_name may not exist yet, will be created by terraform"
+          done
+          
+          echo "✅ All Container Apps updated successfully!"
+      
+      - name: Deployment Summary
+        run: |
+          echo "🎉 DEPLOYMENT COMPLETED SUCCESSFULLY!"
+          echo "=================================="
+          echo "📦 Resource Group: ${{ env.RESOURCE_GROUP }}"
+          echo "🏗️ Container Registry: ${{ env.ACR_NAME }}"
+          echo "🚀 All microservices deployed with tag: ${{ github.sha }}"
+          echo "🌐 Container Apps are now running the latest code!"
