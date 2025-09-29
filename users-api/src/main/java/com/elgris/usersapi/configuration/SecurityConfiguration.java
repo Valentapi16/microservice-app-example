@@ -21,12 +21,8 @@ class HttpSecurityConfiguration {
 
         @Override
         protected void configure(HttpSecurity http) throws Exception {
-            http.csrf().disable()
-                .authorizeRequests()
-                .antMatchers("/actuator/**", "/h2/**", "/health", "/users/**").permitAll()
-                .anyRequest().authenticated()
-                .and()
-                .addFilterAfter(jwtAuthenticationFilter, BasicAuthenticationFilter.class);
+            http.antMatcher("/**")
+                    .addFilterAfter(jwtAuthenticationFilter, BasicAuthenticationFilter.class);
         }
     }
 }
