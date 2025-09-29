@@ -2,8 +2,17 @@ name: Infrastructure CI/CD - Deploy Container Apps
 
 on:
   push:
-    branches: [ "master", "main" ]
-  pull_request:
+    branches: [ "master", "main" ]      - name: Terraform Plan & Apply (Simplified)
+        working-directory: ./infrastructure
+        run: |
+          echo "🚀 Using simplified Terraform configuration for demo..."
+          
+          # Plan and apply with existing resources
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+          
+          echo "✅ Terraform validation completed with existing infrastructure"
+          echo "🔄 Proceeding to container builds and updates..."equest:
     branches: [ "master", "main" ]
   workflow_dispatch:
 
@@ -111,13 +120,15 @@ jobs:
           echo "✅ Using existing ACR: acrmicroserviceappdeva6b3d4b9"
           echo "� Proceeding to container builds and updates..."
       
-      - name: Set Infrastructure Variables
+      - name: Get Infrastructure Outputs
+        working-directory: ./infrastructure
         run: |
-          echo "RESOURCE_GROUP=rg-microservice-dev" >> $GITHUB_ENV
-          echo "ACR_NAME=acrmicroserviceappdeva6b3d4b9" >> $GITHUB_ENV
-          echo "📋 Using existing infrastructure:"
-          echo "   Resource Group: rg-microservice-dev"  
-          echo "   Container Registry: acrmicroserviceappdeva6b3d4b9"
+          terraform output -json > outputs.json
+          echo "RESOURCE_GROUP=$(terraform output -raw resource_group_name)" >> $GITHUB_ENV
+          echo "ACR_NAME=$(terraform output -raw acr_name)" >> $GITHUB_ENV
+          echo "📋 Infrastructure information:"
+          echo "   Resource Group: $(terraform output -raw resource_group_name)"
+          echo "   Container Registry: $(terraform output -raw acr_name)"
       
       - name: Upload Infrastructure Outputs
         uses: actions/upload-artifact@v4
