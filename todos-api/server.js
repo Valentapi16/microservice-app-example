@@ -12,11 +12,15 @@ const {HttpLogger} = require('zipkin-transport-http');
 const zipkinMiddleware = require('zipkin-instrumentation-express').expressMiddleware;
 
 const logChannel = process.env.REDIS_CHANNEL || 'log_channel';
-const redisClient = require("redis").createClient({
+// Redis configuration for Azure Redis Cache with SSL
+const redisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
   port: process.env.REDIS_PORT || 6379,
+  password: process.env.REDIS_PASSWORD,
+  tls: process.env.REDIS_PORT == '6380' ? {} : null, // Enable TLS for SSL port
   retry_strategy: function (options) {
       if (options.error && options.error.code === 'ECONNREFUSED') {
+          console.log('Redis connection refused');
           return new Error('The server refused the connection');
       }
       if (options.total_retry_time > 1000 * 60 * 60) {
@@ -28,7 +32,16 @@ const redisClient = require("redis").createClient({
       }
       return Math.min(options.attempt * 100, 2000);
   }        
+};
+
+console.log('Connecting to Redis with config:', {
+  host: redisConfig.host,
+  port: redisConfig.port,
+  tls: redisConfig.tls ? 'enabled' : 'disabled',
+  password: redisConfig.password ? 'configured' : 'not configured'
 });
+
+const redisClient = require("redis").createClient(redisConfig);
 const port = process.env.TODO_API_PORT || 8082
 const jwtSecret = process.env.JWT_SECRET || "foo"
 
